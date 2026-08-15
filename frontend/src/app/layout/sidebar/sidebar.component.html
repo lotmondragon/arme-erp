@@ -1,0 +1,90 @@
+<aside 
+  class="bg-gray-900 text-white h-screen sticky top-0 transition-all duration-300 flex flex-col"
+  [class.w-64]="!collapsed"
+  [class.w-20]="collapsed">
+  
+  <!-- Logo -->
+  <div class="p-4 border-b border-gray-800">
+    @if (!collapsed) {
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg">ARME ERP</h1>
+          <p class="text-xs text-gray-400">Construcción</p>
+        </div>
+      </div>
+    } @else {
+      <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mx-auto">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+        </svg>
+      </div>
+    }
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex-1 overflow-y-auto py-4">
+    @for (item of menuItems; track item.label) {
+      @if (!item.children) {
+        <a 
+          [routerLink]="item.route"
+          routerLinkActive="bg-blue-600"
+          class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors cursor-pointer">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="item.icon"></path>
+          </svg>
+          @if (!collapsed) {
+            <span class="flex-1">{{ item.label }}</span>
+            @if (item.badge) {
+              <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ item.badge }}</span>
+            }
+          }
+        </a>
+      } @else {
+        <div>
+          <button 
+            (click)="toggleSubmenu(item)"
+            class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition-colors">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="item.icon"></path>
+            </svg>
+            @if (!collapsed) {
+              <span class="flex-1 text-left">{{ item.label }}</span>
+              <svg 
+                class="w-4 h-4 transition-transform"
+                [class.rotate-180]="item.expanded"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            }
+          </button>
+          @if (item.expanded && !collapsed) {
+            <div class="bg-gray-800">
+              @for (child of item.children; track child.label) {
+                <a 
+                  [routerLink]="child.route"
+                  routerLinkActive="bg-blue-600"
+                  class="flex items-center gap-3 px-12 py-2 hover:bg-gray-700 transition-colors text-sm">
+                  {{ child.label }}
+                </a>
+              }
+            </div>
+          }
+        </div>
+      }
+    }
+  </nav>
+
+  <!-- Collapse Button -->
+  <button 
+    (click)="toggleSidebar.emit()"
+    class="p-4 border-t border-gray-800 hover:bg-gray-800 transition-colors">
+    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="collapsed ? 'M13 5l7 7-7 7M5 5l7 7-7 7' : 'M11 19l-7-7 7-7m8 14l-7-7 7-7'"></path>
+    </svg>
+  </button>
+</aside>
