@@ -65,9 +65,7 @@ jobs:
     # Se salta si no hay un registry de contenedores configurado (secret
     # REGISTRY_URL), en vez de fallar. Este repositorio no tiene un registry
     # real detrás todavía; ver docs/DEPLOYMENT.md.
-    if: |
-      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
-      secrets.REGISTRY_URL != ''
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.REGISTRY_URL != '' }}
     steps:
       - uses: actions/checkout@v4
       
