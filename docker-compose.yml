@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: arme-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-arme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arme}
+      POSTGRES_DB: ${POSTGRES_DB:-arme_erp}
+    # ⚠️ Puerto expuesto solo para desarrollo
+    # Comentar en producción para mayor seguridad
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - arme-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arme -d arme_erp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    build:
+      context: ./backend/src/ArmeErp.AuthServer
+      dockerfile: Dockerfile
+    container_name: arme-auth
+    ports:
+      - "5080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-arme_erp};Username=${POSTGRES_USER:-arme};Password=${POSTGRES_PASSWORD:-arme}"
+      JWT__ClientSecret: ${CLIENT_SECRET}
+    networks:
+      - arme-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: src/ArmeErp.WebApi/Dockerfile
+    container_name: arme-api
+    ports:
+      - "5070:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-arme_erp};Username=${POSTGRES_USER:-arme};Password=${POSTGRES_PASSWORD:-arme}"
+      OpenIddict__Authority: "${AUTH_URL:-http://auth:8080}"
+      OpenIddict__Audience: "arme-api"
+      Cors__AllowedOrigins__0: "${FRONTEND_URL:-http://localhost:8080}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - arme-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: arme-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+      - auth
+    networks:
+      - arme-network
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  arme-network:
+    driver: bridge

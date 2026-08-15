@@ -1,0 +1,135 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '20.x'
+
+jobs:
+  backend-build:
+    name: Build & Test Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      
+      - name: Restore dependencies
+        run: dotnet restore backend/ArmeErp.sln
+
+      - name: Build
+        run: dotnet build backend/ArmeErp.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test backend/ArmeErp.sln --no-build -c Release --verbosity normal
+
+  frontend-build:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Build
+        working-directory: frontend
+        run: npm run build -- --configuration production
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [backend-build, frontend-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/src/ArmeErp.WebApi/Dockerfile
+          push: true
+          tags: ${{ secrets.REGISTRY_URL }}/arme-erp/api:latest,${{ secrets.REGISTRY_URL }}/arme-erp/api:${{ github.sha }}
+      
+      - name: Build and push Auth image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend/src/ArmeErp.AuthServer
+          file: ./backend/src/ArmeErp.AuthServer/Dockerfile
+          push: true
+          tags: ${{ secrets.REGISTRY_URL }}/arme-erp/auth:latest,${{ secrets.REGISTRY_URL }}/arme-erp/auth:${{ github.sha }}
+      
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ secrets.REGISTRY_URL }}/arme-erp/web:latest,${{ secrets.REGISTRY_URL }}/arme-erp/web:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Set Kubernetes context
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+      
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f infra/k8s/namespace.yaml
+          kubectl apply -f infra/k8s/configmap.yaml
+          kubectl apply -f infra/k8s/secrets.yaml
+          kubectl apply -f infra/k8s/postgres-deployment.yaml
+          kubectl apply -f infra/k8s/auth-deployment.yaml
+          kubectl apply -f infra/k8s/api-deployment.yaml
+          kubectl apply -f infra/k8s/web-deployment.yaml
+          kubectl apply -f infra/k8s/ingress.yaml
+      
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/api -n arme-erp
+          kubectl rollout status deployment/auth -n arme-erp
+          kubectl rollout status deployment/web -n arme-erp
