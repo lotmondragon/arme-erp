@@ -6,7 +6,7 @@ import { NotificationComponent } from './components/notification/notification.co
   selector: 'app-root',
   imports: [RouterOutlet, NotificationComponent],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
 })
 export class App {
   protected readonly title = signal('web-portal');

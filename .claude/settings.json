@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/build-cs.sh",
+            "timeout": 60,
+            "statusMessage": "Building backend project..."
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/format-frontend.sh",
+            "timeout": 30,
+            "statusMessage": "Formatting with Prettier..."
+          }
+        ]
+      }
+    ]
+  }
+}
