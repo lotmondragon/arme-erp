@@ -39,7 +39,7 @@ separado.
 Requisitos: Docker y Docker Compose.
 
 ```bash
-git clone <url-del-repo>
+git clone https://github.com/lotmondragon/arme-erp.git
 cd arme-erp
 
 cp .env.example .env   # revisa/edita los valores si quieres
@@ -124,8 +124,14 @@ dotnet test ArmeErp.sln
 Cubre los handlers CQRS de Clientes y Proyectos (create/update/delete/get,
 casos de éxito y de "no encontrado") y el validador de FluentValidation de
 creación de clientes, mockeando `IUnitOfWork` — sin necesitar base de datos.
-No hay todavía tests de integración contra una base de datos real ni tests en
-el frontend (ver [Roadmap](#roadmap)).
+
+Además, `ArmeErp.IntegrationTests` incluye pruebas de integración contra el
+stack real levantado con `docker compose up` (API + Auth Server + PostgreSQL,
+sin mocks): obtienen un JWT real vía OpenIddict y llaman a un endpoint
+protegido. Si el stack no está corriendo, se saltan en vez de fallar, por lo
+que el CI de GitHub Actions solo ejecuta los tests unitarios. No hay todavía
+tests en el frontend ni tests de integración con Testcontainers en CI (ver
+[Roadmap](#roadmap)).
 
 ## Roadmap
 
@@ -200,7 +206,8 @@ backend/
     ArmeErp.WebApi/          # Controllers, auth, Swagger, health checks
     ArmeErp.AuthServer/      # Servidor OpenIddict independiente
   tests/
-    ArmeErp.Application.Tests/
+    ArmeErp.Application.Tests/   # Unitarios: handlers CQRS y validadores (xUnit + Moq)
+    ArmeErp.IntegrationTests/    # Integración contra el stack de Docker Compose
 frontend/                    # Angular 20 + Tailwind
 database/schema/             # Diseño de base de datos objetivo (no conectado)
 docs/                        # architecture.md, database-design.md, DEPLOYMENT.md
